@@ -1,0 +1,151 @@
+{
+  "n": "Proyecto Minería ILO",
+  "c": [
+    {
+      "n": "Autoridad Evaluadora",
+      "k": "#b0601a",
+      "c": [
+        {
+          "n": "Reuniones",
+          "u": "",
+          "id": "n3"
+        },
+        {
+          "n": "Observaciones",
+          "c": [
+            {
+              "n": "Primer informe",
+              "u": "",
+              "id": "n5"
+            },
+            {
+              "n": "Segundo informe",
+              "u": "",
+              "id": "n6"
+            }
+          ],
+          "id": "n4"
+        },
+        {
+          "n": "Recomendaciones",
+          "u": "",
+          "id": "n7"
+        },
+        {
+          "n": "Oficios y cartas",
+          "u": "",
+          "id": "n8"
+        }
+      ],
+      "id": "n2"
+    },
+    {
+      "n": "Titular: ALUPAR",
+      "k": "#1f6f8b",
+      "c": [
+        {
+          "n": "Ingeniería del proyecto",
+          "u": "",
+          "id": "n10"
+        },
+        {
+          "n": "Planos",
+          "u": "",
+          "id": "n11"
+        },
+        {
+          "n": "Cronograma",
+          "u": "",
+          "id": "n12"
+        },
+        {
+          "n": "Información legal",
+          "u": "",
+          "id": "n13"
+        },
+        {
+          "n": "Permisos y autorizaciones",
+          "u": "",
+          "id": "n14"
+        }
+      ],
+      "id": "n9"
+    },
+    {
+      "n": "Empresa Consultora",
+      "k": "#4f7a22",
+      "c": [
+        {
+          "n": "Capítulos del EIA",
+          "c": [
+            {
+              "n": "Cap. 1 Generalidades",
+              "u": "",
+              "id": "n17"
+            },
+            {
+              "n": "Cap. 2 Descripción del proyecto",
+              "u": "",
+              "id": "n18"
+            },
+            {
+              "n": "Cap. 3 Línea base",
+              "u": "",
+              "id": "n19"
+            },
+            {
+              "n": "Cap. 4 Evaluación de impactos",
+              "u": "",
+              "id": "n20"
+            }
+          ],
+          "id": "n16"
+        },
+        {
+          "n": "Anexos",
+          "u": "",
+          "id": "n21"
+        },
+        {
+          "n": "Mapas y SIG",
+          "u": "",
+          "id": "n22"
+        },
+        {
+          "n": "Participación ciudadana",
+          "u": "",
+          "id": "n23"
+        }
+      ],
+      "id": "n15"
+    },
+    {
+      "n": "Opinantes Técnicos",
+      "k": "#7b4a8c",
+      "c": [
+        {
+          "n": "ANA",
+          "u": "",
+          "id": "n25"
+        },
+        {
+          "n": "SERNANP",
+          "u": "",
+          "id": "n26"
+        },
+        {
+          "n": "SERFOR",
+          "u": "",
+          "id": "n27"
+        },
+        {
+          "n": "Ministerio de Cultura",
+          "u": "",
+          "id": "n28"
+        }
+      ],
+      "id": "n24"
+    }
+  ],
+  "id": "n1"
+}
