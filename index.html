@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa de documentos · EIA Minería ILO</title>
+<!-- ESTRUCTURA GENERAL: encabezado (busqueda y botones), area del mapa, panel de edicion y datos JavaScript al final. -->
+<style>
+/* AJUSTES RAPIDOS: cambia estas variables para personalizar colores globales.
+   --ink: texto y controles; --line: borde de tarjetas; --bg: fondo; --card-bg: cajas;
+   --link: texto del enlace; --connector: color de las conexiones. */
+:root{--ink:#1d2b30;--mut:#6b7f86;--line:#111;--bg:#f7f9f9;--card-bg:#fff;--link:#287a91;--connector:#74848a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font:14px/1.3 "Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e9eb}
+header b{font-weight:600}
+.tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+input,button{font:inherit;color:inherit}
+input[type=search],.panel input[type=text],.panel input:not([type]){padding:6px 10px;border:1px solid #d3dcdf;border-radius:8px;background:#fff;width:100%}
+input[type=search]{width:200px}
+button{cursor:pointer;border:1px solid #d3dcdf;background:#fff;border-radius:8px;padding:5px 10px}
+button:hover{border-color:var(--ink)}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.eo{display:none}
+body.edit .eo{display:inline-block}
+:focus-visible{outline:3px solid #e0a100;outline-offset:2px}
+#wrap{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:grab;
+ background-image:radial-gradient(#cdd7da 1.2px,transparent 1.2px);background-size:24px 24px}
+#wrap:active{cursor:grabbing}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0}
+svg{position:absolute;left:0;top:0;overflow:visible;width:1px;height:1px;pointer-events:none}
+/* CONEXIONES: stroke-dasharray controla el patron de puntos; stroke controla el color. */
+path{fill:none;stroke:var(--connector);stroke-width:2;stroke-dasharray:2 6;stroke-linecap:round}
+path.new{animation:fade .4s}
+.n{position:absolute;width:236px;height:76px;cursor:pointer}
+/* TARJETAS: modifica ancho, alto, borde, fondo, esquinas y tipografia aqui. */
+.b{width:236px;min-height:62px;border-radius:0;background:var(--card-bg);border:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;justify-content:center;padding:6px 10px;color:var(--ink);box-shadow:none;position:relative;text-align:center;gap:3px}
+.b strong{font-size:16px;line-height:1.15;font-weight:700;color:var(--title-color,var(--c));white-space:normal}
+.b .linkline{font-size:14px;line-height:1.15;color:var(--link);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b .linkline span{color:var(--ink)}
+.b .linkline a{color:var(--link);text-decoration:underline}
+.b .linkline:not(.no-link){text-decoration:underline}
+.b .linkline a:hover{color:var(--ink)}
+.b .linkline.no-link{color:var(--mut)}
+.b i{position:absolute;top:4px;right:7px;font:normal 11px/1 sans-serif;color:var(--mut)}
+.n:hover .b{border-color:var(--ink)}
+.n.sel .b{border-color:var(--ink);box-shadow:0 0 0 3px #d6e4e8}
+.n.dim{opacity:.25}
+.n.hit .b{box-shadow:0 0 0 3px #e0a100}
+.n.new{animation:pop .3s ease-out}
+/* El nombre y el enlace ya aparecen en la tarjeta; se oculta la etiqueta antigua. */
+.l{display:none}
+.o,.a{position:absolute;border-radius:50%;padding:0;line-height:1;text-align:center}
+.o{width:20px;height:20px;right:-10px;top:28px;font-size:11px;background:#fff;border:1.5px solid #8fa2a9}
+/* El indicador circular de cantidad se omite; las cajas con contenido se abren al pulsarlas. */
+.o{display:none}
+.a{width:20px;height:20px;right:-8px;bottom:-8px;font-size:14px;background:var(--ink);color:#fff;border-color:var(--ink)}
+@keyframes pop{from{opacity:0;transform:scale(.8)}}
+@keyframes fade{from{opacity:0}}
+.zoom{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:4px}
+.zoom button{width:32px;padding:4px 0}
+#tip{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12.5px;color:var(--mut);pointer-events:none}
+.panel{position:absolute;right:14px;bottom:14px;width:290px;background:#fff;border:1px solid #d3dcdf;border-radius:14px;padding:14px;box-shadow:0 6px 24px rgba(20,40,50,.14);display:flex;flex-direction:column;gap:9px;cursor:default}
+.panel[hidden]{display:none}
+.panel label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+.panel .row{display:flex;flex-wrap:wrap;gap:6px}
+.panel input[type=color]{width:44px;height:28px;padding:0;border:1px solid #d3dcdf;border-radius:6px}
+.appearance{position:absolute;z-index:5;right:14px;top:14px;width:260px;background:#fff;border:1px solid #d3dcdf;border-radius:12px;padding:13px;box-shadow:0 6px 24px rgba(20,40,50,.16);display:flex;flex-direction:column;gap:8px}
+.appearance[hidden]{display:none}
+.appearance h3{margin:0 0 2px;font-size:15px;color:var(--ink)}
+.appearance label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.appearance input[type=color]{width:38px;height:27px;padding:1px;border:1px solid #d3dcdf;border-radius:5px;background:#fff;cursor:pointer}
+.appearance .row{display:flex;justify-content:space-between;gap:8px;margin-top:3px}
+#pDel{color:#b3261e}
+.n.dl .o{right:auto;left:-10px}
+.n.dt .o{right:auto;left:28px;top:-10px}
+.n.db .o{right:auto;left:28px;top:auto;bottom:-10px}
+</style>
+</head>
+<body>
+<header>
+  <b id="ttl">Mapa de documentos</b>
+  <div class="tools">
+    <input type="search" id="q" placeholder="Buscar…" aria-label="Buscar">
+    <button id="bAll">Expandir</button>
+    <button id="bNone">Contraer</button>
+    <button id="bEdit" aria-pressed="false">Editar</button>
+    <button id="bColors" aria-expanded="false">Colores</button>
+    <button id="bTidy" class="eo" title="Devuelve los cuadros a su posición automática">Acomodar</button>
+    <button id="bReload" class="eo" title="Descarta tus cambios locales y vuelve a leer datos.json">Recargar datos.json</button>
+    <button id="bExp" class="eo">Exportar</button>
+    <button id="bImp" class="eo">Importar</button>
+  </div>
+</header>
+
+<div id="wrap">
+  <div id="stage"></div>
+  <div class="zoom"><button id="zi" aria-label="Acercar">+</button><button id="zo" aria-label="Alejar">−</button><button id="zf" aria-label="Ajustar a pantalla" title="Ajustar">⤢</button></div>
+  <div id="tip"></div>
+  <div class="appearance" id="appearance" hidden>
+    <h3>Colores del mapa</h3>
+    <label>Fondo del mapa<input type="color" data-color="--bg"></label>
+    <label>Fondo de las cajas<input type="color" data-color="--card-bg"></label>
+    <label>Borde de las cajas<input type="color" data-color="--line"></label>
+    <label>Títulos<input type="color" data-color="--title-color"></label>
+    <label>Texto<input type="color" data-color="--ink"></label>
+    <label>Enlaces<input type="color" data-color="--link"></label>
+    <label>Líneas entre cajas<input type="color" data-color="--connector"></label>
+    <div class="row"><button id="colorReset">Restablecer colores</button><button id="colorClose">Cerrar</button></div>
+  </div>
+  <div class="panel" id="panel" hidden>
+    <label>Nombre<input type="text" id="pn"></label>
+    <label>Enlace de OneDrive / SharePoint<input type="text" id="pu" placeholder="https://…"></label>
+    <label id="pcw">Color del grupo<input type="color" id="pc"></label>
+    <div class="row"><button id="pOpen">Abrir enlace</button><button id="pAdd">+ Añadir dentro</button><button id="pDel">Eliminar</button><button id="pX">Cerrar</button></div>
+  </div>
+</div>
+<input type="file" id="file" accept=".json" hidden>
+
+<script>
+/* ===== DATOS INICIALES (estructura del mapa)
+   n = nombre de la tarjeta; u = enlace que se abre al pulsarla;
+   k = color del titulo del grupo; c = lista de tarjetas hijas. ===== */
+const INI={n:"Proyecto Minería ILO",c:[
+ {n:"Autoridad Evaluadora",k:"#b0601a",c:[
+  {n:"Reuniones",u:""},{n:"Observaciones",c:[{n:"Primer informe",u:""},{n:"Segundo informe",u:""}]},{n:"Recomendaciones",u:""},{n:"Oficios y cartas",u:""}]},
+ {n:"Titular: ALUPAR",k:"#1f6f8b",c:[
+  {n:"Ingeniería del proyecto",u:""},{n:"Planos",u:""},{n:"Cronograma",u:""},{n:"Información legal",u:""},{n:"Permisos y autorizaciones",u:""}]},
+ {n:"Empresa Consultora",k:"#4f7a22",c:[
+  {n:"Capítulos del EIA",c:[{n:"Cap. 1 Generalidades",u:""},{n:"Cap. 2 Descripción del proyecto",u:""},{n:"Cap. 3 Línea base",u:""},{n:"Cap. 4 Evaluación de impactos",u:""}]},
+  {n:"Anexos",u:""},{n:"Mapas y SIG",u:""},{n:"Participación ciudadana",u:""}]},
+ {n:"Opinantes Técnicos",k:"#7b4a8c",c:[
+  {n:"ANA",u:""},{n:"SERNANP",u:""},{n:"SERFOR",u:""},{n:"Ministerio de Cultura",u:""}]}
+]};
+/* ============================================================================================ */
+const KEY="mapa_radial_eia_ilo_v1",S=76,NW=236;
+const uid=()=>Math.random().toString(36).slice(2,9);
+const ids=n=>{n.id=n.id||uid();(n.c||[]).forEach(ids)};
+let D;try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!D||!D.n)D=JSON.parse(JSON.stringify(INI));
+ids(D);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const safe=u=>/^https?:\/\//i.test(u||"")?u:"";
+let db=null,canWrite=true,saveT=null;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}
+  if(db&&canWrite){clearTimeout(saveT);saveT=setTimeout(()=>{saveT=null;db.doc("mapa/datos").set({json:JSON.stringify(D)}).catch(()=>{})},600)}};
+const I={
+ root:'<svg viewBox="0 0 24 24"><path d="M2 20l7-12 4 6 3-4 6 10z"/></svg>',
+ folder:'<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+ doc:'<svg viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6zM14 3v5h5"/></svg>'};
+const open=new Set([D.id]);let edit=false,sel=null,view={x:0,y:0,k:1},seen=new Set(),M={},bounds=null;
+const wrap=$("wrap"),stage=$("stage");
+
+// DISTRIBUCION: ACX/COL separan columnas; ROWH separa filas laterales;
+// ACY/ROWY separan ramas arriba/abajo; SX separa sus elementos horizontalmente.
+const ACX=395,COL=395,ROWH=122,ACY=200,ROWY=150,SX=270,DIRS=["t","l","r","b"];
+function index(n,p,d){M[n.id]={n,p,d};(n.c||[]).forEach(c=>index(c,n,d+1))}
+function lay(n,d,col,P,rec){
+  col=n.k||col;
+  const kids=open.has(n.id)&&n.c&&n.c.length?n.c:[];let s;
+  if(!kids.length)s=P.row++;
+  else{const ss=kids.map(k=>lay(k,d+1,col,P,rec));s=(ss[0]+ss[ss.length-1])/2}
+  rec.push({n,d,s,col});return s;
+}
+function place(dir,d,s){
+  const a=ACX+(d-1)*COL,v=ACY+(d-1)*ROWY;
+  return dir==="r"?[a,s*ROWH]:dir==="l"?[-a,s*ROWH]:dir==="t"?[s*SX,-v]:[s*SX,v];
+}
+function draw(){
+  M={};index(D,null,0);
+  $("ttl").textContent=D.n;
+  const q=$("q").value.trim().toLowerCase();let hits=null;
+  if(q){hits=new Set();Object.values(M).forEach(o=>{if(o.n.n.toLowerCase().includes(q)){hits.add(o.n.id);for(let p=o.p;p;p=M[p.id].p)open.add(p.id)}})}
+  const pos={};
+  pos[D.id]={x:-NW/2,y:-S/2,n:D,d:0,col:"#1d2b30",dir:null};
+  (open.has(D.id)?D.c||[]:[]).forEach((a,i)=>{
+    const dir=DIRS[i%4],rec=[],P={row:0},s0=lay(a,1,"#1d2b30",P,rec);
+    rec.forEach(r=>{const[cx,cy]=place(dir,r.d,r.s-s0);
+      pos[r.n.id]={x:cx-NW/2+(r.n.dx||0),y:cy-S/2+(r.n.dy||0),n:r.n,d:r.d,col:r.col,dir}});
+  });
+  let svg="",html="",minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  const nowSeen=new Set();
+  Object.values(pos).forEach(B=>{
+    const par=M[B.n.id].p;if(!par||!pos[par.id])return;
+    const A=pos[par.id],dir=B.dir,h=dir==="r"||dir==="l";let p,c;
+    if(dir==="r"){p=[A.x+NW,A.y+S/2];c=[B.x,B.y+S/2]}
+    else if(dir==="l"){p=[A.x,A.y+S/2];c=[B.x+NW,B.y+S/2]}
+    else if(dir==="t"){p=[A.x+NW/2,A.y];c=[B.x+NW/2,B.y+S]}
+    else{p=[A.x+NW/2,A.y+S];c=[B.x+NW/2,B.y]}
+    const m=h?(c[0]-p[0])/2:(c[1]-p[1])/2,k=par.id+B.n.id;
+    const c1=h?`${p[0]+m} ${p[1]}`:`${p[0]} ${p[1]+m}`,c2=h?`${c[0]-m} ${c[1]}`:`${c[0]} ${c[1]-m}`;
+    svg+=`<path class="${seen.has(k)?"":"new"}" d="M${p[0]} ${p[1]}C${c1} ${c2} ${c[0]} ${c[1]}"/>`;nowSeen.add(k);
+  });
+  Object.values(pos).forEach(p=>{
+    const n=p.n,kids=(n.c||[]).length,v=p.dir==="t"||p.dir==="b";
+    minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);
+    const cls=["n","d"+(p.dir||"x"),p.d&&!n.u&&!kids?"off":"",hits?(hits.has(n.id)?"hit":"dim"):"",sel===n.id?"sel":"",seen.has(n.id)?"":"new"].join(" ");
+    const link=safe(n.u);
+    html+=`<div class="${cls}" tabindex="0" data-id="${n.id}" title="${link?"Abrir enlace: "+esc(link):""}" style="left:${p.x}px;top:${p.y}px;--c:${p.col}">
+      <div class="b"><strong>${esc(n.n)}</strong><div class="linkline ${link?"":"no-link"}"><span>Enlace:</span> ${link?esc(link):"(sin enlace)"}</div>${link?"<i>↗</i>":""}</div><div class="l ${p.d===0?"rt":v?"side":""}">${esc(n.n)}</div>
+      ${kids&&p.d?`<button class="o" data-t="${n.id}" aria-label="Expandir o contraer">${open.has(n.id)?"–":kids}</button>`:""}
+      ${edit?`<button class="a" data-a="${n.id}" aria-label="Añadir dentro">+</button>`:""}</div>`;
+    nowSeen.add(n.id);
+  });
+  seen=nowSeen;bounds={minX,minY,maxX,maxY};
+  stage.innerHTML=`<svg>${svg}</svg>`+html;
+}
+function applyView(){
+  stage.style.transform=`translate(${view.x}px,${view.y}px) scale(${view.k})`;
+  wrap.style.backgroundPosition=`${view.x}px ${view.y}px`;
+  wrap.style.backgroundSize=`${24*view.k}px ${24*view.k}px`;
+}
+function fit(cap=1){
+  const W=wrap.clientWidth,H=wrap.clientHeight,b=bounds,w=b.maxX-b.minX+NW+260,h=b.maxY-b.minY+S+120;
+  const k=Math.max(.3,Math.min(cap,(W-40)/w,(H-40)/h));
+  view.k=k;view.x=W/2-(b.minX+b.maxX+NW)/2*k;view.y=H/2-(b.minY+b.maxY+S+20)/2*k;applyView();
+}
+function ensureVisible(){
+  const W=wrap.clientWidth,H=wrap.clientHeight,b=bounds,k=view.k;
+  if((b.minX-10)*k+view.x<8||b.minY*k+view.y<8||(b.maxX+NW+130)*k+view.x>W-8||(b.maxY+S+60)*k+view.y>H-8)fit(1);
+}
+function zoom(f,cx,cy){
+  const k=Math.min(2,Math.max(.25,view.k*f)),r=k/view.k;
+  view.x=cx-(cx-view.x)*r;view.y=cy-(cy-view.y)*r;view.k=k;applyView();
+}
+function tip(){$("tip").textContent=edit?"Modo edición: clic en un cuadro para editarlo · arrastra para reubicar · + para añadir dentro":"Clic en un cuadro abre su enlace o expande su contenido · arrastra el fondo para moverte · rueda para acercar"}
+
+/* ---------- acciones ---------- */
+function toggle(id){open.has(id)?open.delete(id):open.add(id);draw();ensureVisible()}
+function activate(id){
+  const n=M[id].n;
+  if(edit){sel=id;draw();panel();return}
+  if(safe(n.u))window.open(safe(n.u),"_blank","noopener");
+  else if((n.c||[]).length)toggle(id);
+}
+function addChild(id){
+  const n=M[id].n,c={id:uid(),n:"Nuevo documento",u:""};
+  (n.c=n.c||[]).push(c);open.add(id);sel=c.id;save();draw();ensureVisible();panel(true);
+}
+function panel(focus){
+  const p=$("panel");
+  if(!edit||!sel||!M[sel]){p.hidden=true;return}
+  const o=M[sel],n=o.n;p.hidden=false;
+  $("pn").value=n.n;$("pu").value=n.u||"";
+  $("pcw").style.display=o.d===1?"flex":"none";if(o.d===1)$("pc").value=n.k||"#1f6f8b";
+  $("pDel").style.display=o.d===0?"none":"";
+  $("pOpen").disabled=!safe(n.u);
+  if(focus){$("pn").focus();$("pn").select()}
+}
+$("pn").oninput=()=>{M[sel].n.n=$("pn").value;save();draw()};
+$("pu").oninput=()=>{M[sel].n.u=$("pu").value.trim();$("pOpen").disabled=!safe($("pu").value);save();draw()};
+$("pu").onchange=()=>{const v=$("pu").value.trim();if(v&&!/^https?:\/\//i.test(v)){$("pu").value="https://"+v;$("pu").oninput()}};
+$("pc").oninput=()=>{M[sel].n.k=$("pc").value;save();draw()};
+$("pOpen").onclick=()=>window.open(safe(M[sel].n.u),"_blank","noopener");
+$("pAdd").onclick=()=>addChild(sel);
+$("pDel").onclick=()=>{const o=M[sel];if(o.p&&confirm("¿Eliminar «"+o.n.n+"» y todo lo que contiene?")){o.p.c=o.p.c.filter(x=>x!==o.n);sel=null;save();draw();panel()}};
+$("pX").onclick=()=>{sel=null;draw();panel()};
+document.querySelectorAll(".panel input").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")i.blur()});
+
+/* ---------- interacción ---------- */
+let drag=null;
+wrap.addEventListener("pointerdown",e=>{
+  if(e.target.closest("button,input,.panel"))return;
+  const nd=e.target.closest(".n");
+  drag={id:nd?nd.dataset.id:null,sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false};
+  if(nd){const n=M[drag.id].n;drag.ox=n.dx||0;drag.oy=n.dy||0}
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(!drag.moved&&Math.hypot(dx,dy)>4)drag.moved=true;
+  if(!drag.moved)return;
+  if(drag.id&&edit){const n=M[drag.id].n;n.dx=drag.ox+dx/view.k;n.dy=drag.oy+dy/view.k;draw()}
+  else{view.x=drag.vx+dx;view.y=drag.vy+dy;applyView()}
+});
+const end=()=>{
+  if(!drag)return;const d=drag;drag=null;
+  if(d.moved){if(d.id&&edit)save();return}
+  if(d.id)activate(d.id);else if(edit&&sel){sel=null;draw();panel()}
+};
+wrap.addEventListener("pointerup",end);
+wrap.addEventListener("pointercancel",()=>drag=null);
+wrap.addEventListener("wheel",e=>{e.preventDefault();const r=wrap.getBoundingClientRect();zoom(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top)},{passive:false});
+stage.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.t)toggle(b.dataset.t);
+  if(b.dataset.a)addChild(b.dataset.a);
+});
+stage.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("n")){e.preventDefault();activate(e.target.dataset.id)}});
+
+// La paleta aplica los colores al instante y guarda la preferencia en este navegador.
+const COLOR_KEY="mapa_radial_eia_ilo_colors_v1";
+const COLOR_DEFAULTS={"--bg":"#f7f9f9","--card-bg":"#ffffff","--line":"#111111","--title-color":"#1d2b30","--ink":"#1d2b30","--link":"#287a91","--connector":"#74848a"};
+function setColor(name,value){document.documentElement.style.setProperty(name,value)}
+function loadColors(){let saved={};try{saved=JSON.parse(localStorage.getItem(COLOR_KEY)||"{}")||{}}catch(e){}
+  document.querySelectorAll("[data-color]").forEach(input=>{const key=input.dataset.color,val=/^#[0-9a-f]{6}$/i.test(saved[key]||"")?saved[key]:COLOR_DEFAULTS[key];input.value=val;setColor(key,val)});
+}
+document.querySelectorAll("[data-color]").forEach(input=>input.oninput=()=>{
+  setColor(input.dataset.color,input.value);let saved={};try{saved=JSON.parse(localStorage.getItem(COLOR_KEY)||"{}")||{}}catch(e){}
+  saved[input.dataset.color]=input.value;try{localStorage.setItem(COLOR_KEY,JSON.stringify(saved))}catch(e){}
+});
+$("bColors").onclick=()=>{const box=$("appearance"),show=box.hidden;box.hidden=!show;$("bColors").setAttribute("aria-expanded",String(show))};
+$("colorClose").onclick=()=>{$("appearance").hidden=true;$("bColors").setAttribute("aria-expanded","false")};
+$("colorReset").onclick=()=>{try{localStorage.removeItem(COLOR_KEY)}catch(e){}loadColors()};
+loadColors();
+$("q").oninput=()=>{draw();ensureVisible()};
+$("bAll").onclick=()=>{Object.values(M).forEach(o=>{if((o.n.c||[]).length)open.add(o.n.id)});draw();fit(1)};
+$("bNone").onclick=()=>{open.clear();open.add(D.id);draw();fit()};
+$("bEdit").onclick=()=>{
+  edit=!edit;document.body.classList.toggle("edit",edit);$("bEdit").classList.toggle("on",edit);
+  $("bEdit").setAttribute("aria-pressed",edit);$("bEdit").textContent=edit?"Terminar edición":"Editar";
+  if(!edit)sel=null;tip();draw();panel();
+};
+$("bTidy").onclick=()=>{Object.values(M).forEach(o=>{delete o.n.dx;delete o.n.dy});save();draw();fit()};
+$("bExp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:"application/json"}));a.download="datos.json";a.click()};
+$("bImp").onclick=()=>$("file").click();
+$("file").onchange=e=>{const f=e.target.files[0];if(f)f.text().then(t=>{try{const j=JSON.parse(t);if(!j.n)throw 0;D=j;ids(D);open.clear();open.add(D.id);sel=null;save();draw();fit();panel()}catch(x){alert("Archivo no válido.")}})};
+$("zi").onclick=()=>zoom(1.2,wrap.clientWidth/2,wrap.clientHeight/2);
+$("zo").onclick=()=>zoom(1/1.2,wrap.clientWidth/2,wrap.clientHeight/2);
+$("zf").onclick=()=>fit();
+addEventListener("resize",()=>ensureVisible());
+$("bReload").onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}location.reload()};
+if(!window.claude&&location.protocol!=="file:"){
+  let draft=null;try{draft=localStorage.getItem(KEY)}catch(e){}
+  if(!draft)fetch("datos.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.n){D=j;ids(D);open.clear();open.add(D.id);draw();fit()}}).catch(()=>{});
+}
+(async()=>{
+  if(!window.claude)return;
+  try{
+    const [dbx,user]=await Promise.all([claude.use("db"),claude.use("user")]);
+    if(!dbx)return;db=dbx;
+    if(user){canWrite=(await user.can("data.write"))!==false}
+    $("bEdit").hidden=!canWrite;
+    const ref=db.doc("mapa/datos");
+    ref.onSnapshot(sn=>{
+      if(sn.exists){
+        if(saveT||drag)return;
+        const txt=sn.data().json;if(txt===JSON.stringify(D))return;
+        try{const j=JSON.parse(txt);if(j&&j.n){D=j;ids(D);if(!open.has(D.id)){open.clear();open.add(D.id)}draw();panel()}}catch(e){}
+      }else if(canWrite){ref.set({json:JSON.stringify(D)}).catch(()=>{})}
+    },()=>{});
+  }catch(e){}
+})();
+tip();draw();fit();
+</script>
+</body>
+</html>
